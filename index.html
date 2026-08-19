@@ -142,8 +142,7 @@ input[type=text]:focus{outline:none;border-color:var(--signal)}
 .colophon{margin-top:26px;font-size:12px;color:var(--muted);text-align:center}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
 @media (prefers-reduced-motion:reduce){
-  .burst.pop{animation:none;opacity:1}
-  .track b{transition:none !important}
+  .burst.pop{animation:none;opacity:1;transform:translate(-50%,-50%) scale(1)}
 }
 </style>
 </head>
@@ -186,6 +185,16 @@ input[type=text]:focus{outline:none;border-color:var(--signal)}
             <button class="btn btn-go" id="startBtn">훈련 시작</button>
           </div>
           <p class="feedback">화면을 터치하거나 스페이스바를 누르면 반응 처리됩니다.</p>
+        </section>
+
+        <section class="screen" id="scError">
+          <p class="word dim" style="color:var(--red)">단어 파일을 불러오지 못했습니다</p>
+          <p class="feedback" id="errDetail"></p>
+          <ul class="rulebook" style="margin-top:22px">
+            <li><span class="k k-x">확인 1</span><span class="t"><code>words.js</code>가 <code>index.html</code>과 같은 폴더에 있나요</span></li>
+            <li><span class="k k-x">확인 2</span><span class="t">파일 이름의 대소문자가 정확한가요 (서버는 구분합니다)</span></li>
+            <li><span class="k k-x">확인 3</span><span class="t">저장소에 커밋되어 실제로 올라갔나요</span></li>
+          </ul>
         </section>
 
         <section class="screen" id="scPlay">
@@ -247,6 +256,11 @@ input[type=text]:focus{outline:none;border-color:var(--signal)}
   var pipsEl = el("pips"), burstEl = el("burst"), nameInput = el("nameInput");
 
   var trials = [], idx = 0, results = [], state = "idle", t0 = 0, timers = [], player = "";
+  var rafId = 0, burstTimer = 0;
+
+  var now = function(){
+    return (window.performance && performance.now) ? performance.now() : Date.now();
+  };
 
   function clearTimers(){ timers.forEach(clearTimeout); timers = []; }
   function later(fn, ms){ var t = setTimeout(fn, ms); timers.push(t); return t; }
@@ -257,8 +271,22 @@ input[type=text]:focus{outline:none;border-color:var(--signal)}
     }
     return a;
   }
+  var scError = el("scError");
+
   function show(section){
-    [scIntro, scPlay, scResult].forEach(function(s){ s.classList.toggle("on", s === section); });
+    [scIntro, scPlay, scResult, scError].forEach(function(s){ s.classList.toggle("on", s === section); });
+  }
+
+  function wordsReady(){
+    return Array.isArray(PAIRS) && PAIRS.length >= ROUNDS;
+  }
+
+  function reportMissingWords(){
+    var found = Array.isArray(PAIRS) ? PAIRS.length : 0;
+    el("errDetail").textContent = found === 0
+      ? "words.js가 로드되지 않았습니다. 브라우저 개발자도구의 Network 탭에서 404가 있는지 확인하세요."
+      : "단어 쌍이 " + found + "개뿐입니다. 한 판에 " + ROUNDS + "개가 필요합니다.";
+    show(scError);
   }
 
   function buildTrials(){
@@ -287,31 +315,45 @@ input[type=text]:focus{outline:none;border-color:var(--signal)}
   }
 
   function pop(text, bg, fg){
+    clearTimeout(burstTimer);
     burstEl.textContent = text;
     burstEl.style.background = bg;
     burstEl.style.color = fg;
     burstEl.classList.remove("pop");
     void burstEl.offsetWidth;
     burstEl.classList.add("pop");
+    burstTimer = setTimeout(hideBurst, 760);
+  }
+  function hideBurst(){
+    clearTimeout(burstTimer);
+    burstEl.classList.remove("pop");
   }
 
   function runTrack(){
+    cancelAnimationFrame(rafId);
     trackEl.style.visibility = "visible";
-    barEl.style.transition = "none";
     barEl.style.width = "100%";
-    void barEl.offsetWidth;
-    barEl.style.transition = "width " + WINDOW_MS + "ms linear";
-    barEl.style.width = "0%";
+    var started = now();
+    var step = function(){
+      var left = 1 - (now() - started) / WINDOW_MS;
+      if (left < 0) left = 0;
+      barEl.style.width = (left * 100).toFixed(2) + "%";
+      if (left > 0) rafId = requestAnimationFrame(step);
+    };
+    rafId = requestAnimationFrame(step);
   }
   function stopTrack(){
-    barEl.style.transition = "none";
+    cancelAnimationFrame(rafId);
+    rafId = 0;
     trackEl.style.visibility = "hidden";
+    barEl.style.width = "100%";
   }
 
   function nextTrial(){
     if (idx >= trials.length){ finish(); return; }
     state = "fixation";
     stopTrack();
+    hideBurst();
     wordEl.className = "word dim";
     wordEl.textContent = "\u00b7 \u00b7 \u00b7";
     fbEl.textContent = "";
@@ -321,7 +363,7 @@ input[type=text]:focus{outline:none;border-color:var(--signal)}
   function showStimulus(){
     var tr = trials[idx];
     state = "stim";
-    t0 = Date.now();
+    t0 = now();
     wordEl.className = "word";
     wordEl.textContent = tr.word;
     runTrack();
@@ -345,7 +387,7 @@ input[type=text]:focus{outline:none;border-color:var(--signal)}
 
   function tap(){
     if (state !== "stim") return;
-    var rt = Date.now() - t0;
+    var rt = Math.round(now() - t0);
     if (trials[idx].go) resolve(true, rt, rt + " ms — 정확한 철자", "THWIP!", "#3F6DF2", "#fff");
     else resolve(false, null, "오탈자를 눌렀습니다", "OOPS!", "#E8362B", "#fff");
   }
@@ -382,7 +424,10 @@ input[type=text]:focus{outline:none;border-color:var(--signal)}
   }
 
   function begin(){
+    if (!wordsReady()){ reportMissingWords(); return; }
     clearTimers();
+    hideBurst();
+    stopTrack();
     player = (nameInput.value || "").trim().slice(0, 12) || "익명의 훈련생";
     idx = 0; results = [];
     buildTrials();
@@ -435,7 +480,8 @@ input[type=text]:focus{outline:none;border-color:var(--signal)}
   el("startBtn").addEventListener("click", begin);
   el("againBtn").addEventListener("click", begin);
   el("nextBtn").addEventListener("click", function(){
-    clearTimers(); state = "idle"; nameInput.value = "";
+    clearTimers(); hideBurst(); stopTrack();
+    state = "idle"; nameInput.value = "";
     show(scIntro); nameInput.focus();
   });
   nameInput.addEventListener("keydown", function(e){
@@ -461,6 +507,7 @@ input[type=text]:focus{outline:none;border-color:var(--signal)}
   });
 
   renderBoard();
+  if (!wordsReady()) reportMissingWords();
 })();
 </script>
 </body>
