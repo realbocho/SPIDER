@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>스파이더 센스 테스트 — 철자 감지 훈련</title>
+<meta name="description" content="철자가 맞으면 즉시 누르고, 틀리면 3초를 버티는 반응속도 스테이션." />
+<meta name="theme-color" content="#0B0F1F" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=Black+Han+Sans&family=Space+Grotesk:wght@400;500;700&family=Space+Mono:wght@700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --night:#0B0F1F;
+  --panel:#141A31;
+  --panel-2:#1C2444;
+  --ink:#05070F;
+  --paper:#F3F0E7;
+  --muted:#8E97BC;
+  --red:#E8362B;
+  --blue:#3F6DF2;
+  --signal:#FFD23F;
+  --line:rgba(243,240,231,.16);
+  --display:"Big Shoulders Display","Black Han Sans",sans-serif;
+  --body:"Space Grotesk","Noto Sans KR",sans-serif;
+  --mono:"Space Mono","Noto Sans KR",monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--night);
+  color:var(--paper);
+  font-family:var(--body);
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+  min-height:100vh;
+  touch-action:manipulation;
+}
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:radial-gradient(rgba(243,240,231,.09) 1px,transparent 1px);
+  background-size:7px 7px;
+}
+.corner-web{position:fixed;top:-40px;left:-40px;width:300px;height:300px;opacity:.13;pointer-events:none;z-index:0}
+.wrap{position:relative;z-index:1;max-width:1120px;margin:0 auto;padding:28px 20px 64px}
+
+.masthead{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:22px}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--signal);margin:0 0 4px}
+.title{font-family:var(--display);font-size:clamp(38px,6vw,68px);line-height:.92;margin:0;letter-spacing:-.01em}
+.title em{font-style:normal;color:var(--red)}
+.tagline{color:var(--muted);font-size:14px;margin:8px 0 0}
+.tools{display:flex;gap:8px}
+
+.btn{
+  font-family:var(--body);font-size:14px;font-weight:500;color:var(--paper);
+  background:transparent;border:1.5px solid var(--line);border-radius:2px;
+  padding:9px 16px;cursor:pointer;transition:background .14s,border-color .14s;
+}
+.btn:hover{background:rgba(243,240,231,.07);border-color:rgba(243,240,231,.4)}
+.btn:focus-visible{outline:2px solid var(--signal);outline-offset:2px}
+.btn-go{background:var(--red);border-color:var(--red);font-weight:700;padding:13px 28px;font-size:16px}
+.btn-go:hover{background:#ff4438;border-color:#ff4438}
+.btn-sm{font-size:12px;padding:6px 11px}
+
+.grid{display:grid;grid-template-columns:minmax(0,1.85fr) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:860px){.grid{grid-template-columns:1fr}}
+
+.panel{background:var(--panel);border:2px solid var(--ink);box-shadow:6px 6px 0 var(--ink);border-radius:3px}
+.panel-pad{padding:22px}
+
+/* ---- stage ---- */
+.stage{position:relative;min-height:400px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:32px 24px}
+.screen{display:none;width:100%}
+.screen.on{display:block}
+
+.rulebook{list-style:none;margin:0 auto 26px;padding:0;max-width:430px;text-align:left}
+.rulebook li{display:flex;gap:12px;align-items:baseline;padding:11px 0;border-bottom:1px solid var(--line)}
+.rulebook li:last-child{border-bottom:0}
+.rulebook .k{font-family:var(--mono);font-size:11px;letter-spacing:.1em;padding:3px 8px;border-radius:2px;white-space:nowrap;flex:none}
+.k-go{background:var(--blue);color:#fff}
+.k-no{background:var(--signal);color:var(--ink)}
+.k-x{background:rgba(243,240,231,.12);color:var(--muted)}
+.rulebook .t{font-size:14.5px}
+
+.namefield{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:20px}
+input[type=text]{
+  font-family:var(--body);font-size:15px;color:var(--paper);background:var(--panel-2);
+  border:1.5px solid var(--line);border-radius:2px;padding:11px 14px;width:230px;
+}
+input[type=text]::placeholder{color:var(--muted)}
+input[type=text]:focus{outline:none;border-color:var(--signal)}
+
+.roundbar{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-bottom:26px}
+.pip{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;color:var(--muted)}
+.pip.hit{background:var(--blue);border-color:var(--blue);color:#fff}
+.pip.miss{background:var(--red);border-color:var(--red);color:#fff}
+
+.word{font-family:var(--mono);font-weight:700;font-size:clamp(34px,7.5vw,64px);letter-spacing:.02em;margin:0;min-height:1.1em;word-break:break-all}
+.word.dim{color:var(--muted);font-size:clamp(24px,4vw,34px)}
+.feedback{font-size:14px;color:var(--muted);margin:14px 0 0;min-height:1.4em}
+.track{width:min(320px,80%);height:5px;background:rgba(243,240,231,.12);border-radius:3px;margin:24px auto 0;overflow:hidden;visibility:hidden}
+.track b{display:block;height:100%;width:100%;background:var(--signal)}
+
+.burst{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) scale(.4);
+  width:210px;height:210px;display:flex;align-items:center;justify-content:center;
+  font-family:var(--display);font-size:34px;letter-spacing:.02em;color:var(--ink);
+  background:var(--signal);opacity:0;pointer-events:none;
+  clip-path:polygon(50% 0%,58% 12%,70% 5%,72% 20%,86% 18%,82% 32%,97% 36%,88% 47%,100% 57%,86% 63%,93% 76%,78% 76%,79% 91%,66% 84%,60% 98%,50% 87%,40% 98%,34% 84%,21% 91%,22% 76%,7% 76%,14% 63%,0% 57%,12% 47%,3% 36%,18% 32%,14% 18%,28% 20%,30% 5%,42% 12%);
+}
+.burst.pop{animation:pop .62s ease-out forwards}
+@keyframes pop{
+  0%{opacity:0;transform:translate(-50%,-50%) scale(.4) rotate(-12deg)}
+  22%{opacity:1;transform:translate(-50%,-50%) scale(1.06) rotate(4deg)}
+  70%{opacity:1;transform:translate(-50%,-50%) scale(1) rotate(0)}
+  100%{opacity:0;transform:translate(-50%,-50%) scale(1.02)}
+}
+
+/* ---- result ---- */
+.score{font-family:var(--display);font-size:clamp(64px,13vw,120px);line-height:.85;margin:0;color:var(--signal)}
+.grade{font-family:var(--display);font-size:clamp(24px,4vw,34px);margin:10px 0 22px;color:var(--paper)}
+.tally{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);max-width:440px;margin:0 auto 24px}
+.tally div{background:var(--panel);padding:13px 8px}
+.tally dt{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0 0 5px}
+.tally dd{margin:0;font-size:20px;font-weight:700}
+.newbest{display:inline-block;font-family:var(--mono);font-size:11px;letter-spacing:.1em;background:var(--red);color:#fff;padding:4px 10px;margin-bottom:14px}
+
+/* ---- leaderboard ---- */
+.side h2{font-family:var(--display);font-size:26px;margin:0 0 2px;letter-spacing:.01em}
+.side .sub{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0 0 16px}
+.board{list-style:none;margin:0;padding:0}
+.board li{display:flex;align-items:baseline;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px}
+.board li:last-child{border-bottom:0}
+.board .rk{font-family:var(--mono);font-size:12px;color:var(--muted);width:22px;flex:none}
+.board li.top .rk{color:var(--signal)}
+.board .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.board .sc{font-family:var(--mono);font-weight:700;font-size:14px}
+.empty{color:var(--muted);font-size:13.5px;margin:0}
+.sidefoot{margin-top:18px;padding-top:14px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:8px}
+.sidefoot span{font-family:var(--mono);font-size:11px;color:var(--muted)}
+
+.colophon{margin-top:26px;font-size:12px;color:var(--muted);text-align:center}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+@media (prefers-reduced-motion:reduce){
+  .burst.pop{animation:none;opacity:1}
+  .track b{transition:none !important}
+}
+</style>
+</head>
+<body>
+
+<svg class="corner-web" viewBox="0 0 300 300" aria-hidden="true">
+  <g fill="none" stroke="#F3F0E7" stroke-width="1.6">
+    <path d="M0 0 L300 40 M0 0 L250 120 M0 0 L170 210 M0 0 L90 265 M0 0 L20 300" />
+    <path d="M40 8 Q30 30 8 40 M85 18 Q62 60 18 85 M130 32 Q95 95 32 130 M175 48 Q126 130 48 175 M220 66 Q158 168 66 220" />
+  </g>
+</svg>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div>
+      <p class="eyebrow">station 04 · reaction</p>
+      <h1 class="title">스파이더 <em>센스</em> 테스트</h1>
+      <p class="tagline">위험을 감지하는 능력은, 반응하는 속도와 참는 힘 둘 다다.</p>
+    </div>
+    <div class="tools">
+      <button class="btn btn-sm" id="fsBtn">전체화면</button>
+    </div>
+  </header>
+
+  <div class="grid">
+
+    <main class="panel">
+      <div class="stage">
+        <div class="burst" id="burst" aria-hidden="true"></div>
+
+        <section class="screen on" id="scIntro">
+          <ul class="rulebook">
+            <li><span class="k k-go">누른다</span><span class="t">철자가 <b>맞는</b> 단어 — 최대한 빠르게</span></li>
+            <li><span class="k k-no">버틴다</span><span class="t">철자가 <b>틀린</b> 단어 — 3초간 손대지 않기</span></li>
+            <li><span class="k k-x">10판</span><span class="t">맞는 단어 6개, 틀린 단어 4개가 섞여서 나옵니다</span></li>
+          </ul>
+          <div class="namefield">
+            <input type="text" id="nameInput" maxlength="12" placeholder="이름 또는 별명" aria-label="참가자 이름" />
+            <button class="btn btn-go" id="startBtn">훈련 시작</button>
+          </div>
+          <p class="feedback">화면을 터치하거나 스페이스바를 누르면 반응 처리됩니다.</p>
+        </section>
+
+        <section class="screen" id="scPlay">
+          <div class="roundbar" id="pips"></div>
+          <p class="word" id="word" role="status" aria-live="polite">준비</p>
+          <p class="feedback" id="fb"></p>
+          <div class="track" id="track"><b id="bar"></b></div>
+        </section>
+
+        <section class="screen" id="scResult">
+          <div id="bestTag"></div>
+          <p class="score" id="finalScore">0</p>
+          <p class="grade" id="finalGrade">—</p>
+          <dl class="tally">
+            <div><dt>정확도</dt><dd id="tAcc">0 / 10</dd></div>
+            <div><dt>평균 반응</dt><dd id="tRt">— ms</dd></div>
+            <div><dt>속도 점수</dt><dd id="tSpd">0</dd></div>
+          </dl>
+          <div class="namefield">
+            <button class="btn btn-go" id="againBtn">한 번 더</button>
+            <button class="btn" id="nextBtn">다음 참가자</button>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <aside class="panel panel-pad side">
+      <h2>기록판</h2>
+      <p class="sub">today's top agents</p>
+      <ul class="board" id="board"></ul>
+      <p class="empty" id="boardEmpty">아직 기록이 없습니다. 첫 도전자를 기다리는 중.</p>
+      <div class="sidefoot">
+        <span id="playCount">0 plays</span>
+        <button class="btn btn-sm" id="clearBtn">기록 초기화</button>
+      </div>
+    </aside>
+
+  </div>
+
+  <p class="colophon">기록은 이 기기의 브라우저에만 저장됩니다. 다른 기기와는 공유되지 않습니다.</p>
+</div>
+
+<script src="words.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  var PAIRS = window.SPELLING_WORDS || [];
+  var CFG = window.GAME_CONFIG || {};
+  var ROUNDS = CFG.ROUNDS || 10;
+  var GO_COUNT = CFG.GO_COUNT || 6;
+  var WINDOW_MS = CFG.WINDOW_MS || 3000;
+  var TOP_N = CFG.TOP_N || 10;
+  var STORE_KEY = "spidersense.scores.v1";
+
+  var el = function(id){ return document.getElementById(id); };
+  var scIntro = el("scIntro"), scPlay = el("scPlay"), scResult = el("scResult");
+  var wordEl = el("word"), fbEl = el("fb"), trackEl = el("track"), barEl = el("bar");
+  var pipsEl = el("pips"), burstEl = el("burst"), nameInput = el("nameInput");
+
+  var trials = [], idx = 0, results = [], state = "idle", t0 = 0, timers = [], player = "";
+
+  function clearTimers(){ timers.forEach(clearTimeout); timers = []; }
+  function later(fn, ms){ var t = setTimeout(fn, ms); timers.push(t); return t; }
+  function shuffle(a){
+    for (var i = a.length - 1; i > 0; i--){
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+    }
+    return a;
+  }
+  function show(section){
+    [scIntro, scPlay, scResult].forEach(function(s){ s.classList.toggle("on", s === section); });
+  }
+
+  function buildTrials(){
+    var picked = shuffle(PAIRS.slice()).slice(0, ROUNDS);
+    var pattern = [];
+    for (var i = 0; i < ROUNDS; i++) pattern.push(i < GO_COUNT);
+    shuffle(pattern);
+    trials = picked.map(function(pair, i){
+      return { word: pattern[i] ? pair[0] : pair[1], go: pattern[i] };
+    });
+  }
+
+  function renderPips(){
+    pipsEl.innerHTML = "";
+    for (var i = 0; i < trials.length; i++){
+      var d = document.createElement("div");
+      d.className = "pip"; d.id = "pip" + i; d.textContent = i + 1;
+      pipsEl.appendChild(d);
+    }
+  }
+  function markPip(i, ok){
+    var d = el("pip" + i);
+    if (!d) return;
+    d.className = "pip " + (ok ? "hit" : "miss");
+    d.textContent = ok ? "\u2713" : "\u2715";
+  }
+
+  function pop(text, bg, fg){
+    burstEl.textContent = text;
+    burstEl.style.background = bg;
+    burstEl.style.color = fg;
+    burstEl.classList.remove("pop");
+    void burstEl.offsetWidth;
+    burstEl.classList.add("pop");
+  }
+
+  function runTrack(){
+    trackEl.style.visibility = "visible";
+    barEl.style.transition = "none";
+    barEl.style.width = "100%";
+    void barEl.offsetWidth;
+    barEl.style.transition = "width " + WINDOW_MS + "ms linear";
+    barEl.style.width = "0%";
+  }
+  function stopTrack(){
+    barEl.style.transition = "none";
+    trackEl.style.visibility = "hidden";
+  }
+
+  function nextTrial(){
+    if (idx >= trials.length){ finish(); return; }
+    state = "fixation";
+    stopTrack();
+    wordEl.className = "word dim";
+    wordEl.textContent = "\u00b7 \u00b7 \u00b7";
+    fbEl.textContent = "";
+    later(showStimulus, 650);
+  }
+
+  function showStimulus(){
+    var tr = trials[idx];
+    state = "stim";
+    t0 = Date.now();
+    wordEl.className = "word";
+    wordEl.textContent = tr.word;
+    runTrack();
+    later(function(){
+      if (trials[idx].go) resolve(false, null, "놓쳤습니다 — 맞는 철자였어요", "TOO SLOW!", "#E8362B", "#fff");
+      else resolve(true, null, "잘 참았습니다 — 오탈자였어요", "SENSE!", "#FFD23F", "#05070F");
+    }, WINDOW_MS);
+  }
+
+  function resolve(ok, rt, msg, burstText, bg, fg){
+    clearTimers();
+    stopTrack();
+    state = "feedback";
+    results.push({ ok: ok, rt: rt });
+    markPip(idx, ok);
+    pop(burstText, bg, fg);
+    fbEl.textContent = msg;
+    idx++;
+    later(nextTrial, 880);
+  }
+
+  function tap(){
+    if (state !== "stim") return;
+    var rt = Date.now() - t0;
+    if (trials[idx].go) resolve(true, rt, rt + " ms — 정확한 철자", "THWIP!", "#3F6DF2", "#fff");
+    else resolve(false, null, "오탈자를 눌렀습니다", "OOPS!", "#E8362B", "#fff");
+  }
+
+  function gradeFor(hits, avg){
+    if (hits === ROUNDS && avg && avg < 600) return "감각 각성";
+    if (hits >= ROUNDS - 1 && avg && avg < 800) return "웹슬링어";
+    if (hits >= ROUNDS - 3) return "훈련생";
+    return "아직 물린 직후";
+  }
+
+  function finish(){
+    state = "done";
+    stopTrack();
+    var hits = results.filter(function(r){ return r.ok; }).length;
+    var rts = results.filter(function(r){ return r.rt !== null; }).map(function(r){ return r.rt; });
+    var avg = rts.length ? rts.reduce(function(a, b){ return a + b; }, 0) / rts.length : 0;
+    var speed = rts.reduce(function(sum, rt){ return sum + Math.max(0, Math.round((1200 - rt) / 10)); }, 0);
+    var total = hits * 100 + speed;
+
+    el("finalScore").textContent = total.toLocaleString();
+    el("finalGrade").textContent = gradeFor(hits, avg);
+    el("tAcc").textContent = hits + " / " + ROUNDS;
+    el("tRt").textContent = rts.length ? Math.round(avg) + " ms" : "— ms";
+    el("tSpd").textContent = speed.toLocaleString();
+
+    var rank = save({ name: player, score: total, acc: hits, avgRt: Math.round(avg), at: Date.now() });
+    el("bestTag").innerHTML = rank !== null && rank < 3
+      ? '<span class="newbest">기록판 ' + (rank + 1) + '위 진입</span>'
+      : "";
+
+    renderBoard();
+    show(scResult);
+  }
+
+  function begin(){
+    clearTimers();
+    player = (nameInput.value || "").trim().slice(0, 12) || "익명의 훈련생";
+    idx = 0; results = [];
+    buildTrials();
+    renderPips();
+    show(scPlay);
+    state = "countdown";
+    wordEl.className = "word dim";
+    fbEl.textContent = "";
+    var n = 3;
+    wordEl.textContent = n;
+    var tick = function(){
+      n--;
+      if (n > 0){ wordEl.textContent = n; later(tick, 700); }
+      else { wordEl.textContent = "시작"; later(nextTrial, 550); }
+    };
+    later(tick, 700);
+  }
+
+  /* ---- leaderboard ---- */
+  function load(){
+    try { return JSON.parse(localStorage.getItem(STORE_KEY)) || []; }
+    catch (e){ return []; }
+  }
+  function save(entry){
+    var list = load();
+    list.push(entry);
+    list.sort(function(a, b){ return b.score - a.score; });
+    var rank = list.indexOf(entry);
+    list = list.slice(0, TOP_N);
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(list)); } catch (e){}
+    return rank < TOP_N ? rank : null;
+  }
+  function renderBoard(){
+    var list = load(), board = el("board");
+    board.innerHTML = "";
+    el("boardEmpty").style.display = list.length ? "none" : "block";
+    list.forEach(function(row, i){
+      var li = document.createElement("li");
+      if (i === 0) li.className = "top";
+      li.innerHTML = '<span class="rk">' + (i + 1) + '</span>'
+        + '<span class="nm"></span>'
+        + '<span class="sc">' + row.score.toLocaleString() + '</span>';
+      li.querySelector(".nm").textContent = row.name;
+      board.appendChild(li);
+    });
+    el("playCount").textContent = list.length + (list.length === 1 ? " play" : " plays");
+  }
+
+  /* ---- wiring ---- */
+  el("startBtn").addEventListener("click", begin);
+  el("againBtn").addEventListener("click", begin);
+  el("nextBtn").addEventListener("click", function(){
+    clearTimers(); state = "idle"; nameInput.value = "";
+    show(scIntro); nameInput.focus();
+  });
+  nameInput.addEventListener("keydown", function(e){
+    if (e.key === "Enter"){ e.preventDefault(); begin(); }
+  });
+  el("clearBtn").addEventListener("click", function(){
+    if (confirm("기록판을 모두 지웁니다. 계속할까요?")){
+      try { localStorage.removeItem(STORE_KEY); } catch (e){}
+      renderBoard();
+    }
+  });
+  el("fsBtn").addEventListener("click", function(){
+    if (document.fullscreenElement) document.exitFullscreen();
+    else if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
+  });
+  document.addEventListener("fullscreenchange", function(){
+    el("fsBtn").textContent = document.fullscreenElement ? "전체화면 종료" : "전체화면";
+  });
+
+  scPlay.addEventListener("click", tap);
+  document.addEventListener("keydown", function(e){
+    if (e.code === "Space" && state === "stim"){ e.preventDefault(); tap(); }
+  });
+
+  renderBoard();
+})();
+</script>
+</body>
+</html>
